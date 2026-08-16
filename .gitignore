@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+.opencode_secrets.env
+__pycache__/
+*.pyc
+kokoro-env/
+.config/
+.vscode/
+*.log
+.DS_Store
+.claude/
+.cline/
+.codex/
