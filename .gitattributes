@@ -1,0 +1,4 @@
+* text=auto
+*.py text diff=python
+*.html text
+*.md text
