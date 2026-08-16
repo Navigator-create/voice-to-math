@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Math Voice Verifier</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #1f2937; background: #f8fafc; }
+    body { max-width: 42rem; margin: 0 auto; padding: 3rem 1.25rem; text-align: center; }
+    button { padding: .8rem 1.25rem; font: inherit; cursor: pointer; }
+    button:disabled { cursor: wait; opacity: .6; }
+    .notice, #result-box { margin-top: 1.5rem; padding: 1rem; border-radius: .5rem; text-align: left; }
+    .notice { background: #fff7ed; border: 1px solid #fed7aa; }
+    #result-box { display: none; background: #fff; border: 1px solid #d1d5db; }
+    #status { min-height: 1.5rem; margin-top: 1rem; color: #475569; }
+  </style>
+</head>
+<body>
+  <h1>Math Voice Verifier</h1>
+  <p class="notice"><strong>OpenAI transcription:</strong> your recording is sent to OpenAI for transcription. Use this local demo only with recordings you are permitted to share.</p>
+  <button id="recordBtn" type="button">Start recording</button>
+  <div id="status" role="status">Click “Start recording” to begin.</div>
+
+  <section id="result-box" aria-live="polite">
+    <h2>Result</h2>
+    <p><strong>Mode:</strong> <span id="mode"></span></p>
+    <p><strong>Transcription:</strong> <span id="transcription"></span></p>
+    <p><strong>Verified result:</strong> <span id="mathResult"></span></p>
+  </section>
+
+  <script>
+    const recordBtn = document.querySelector('#recordBtn');
+    const statusDiv = document.querySelector('#status');
+    const resultBox = document.querySelector('#result-box');
+    const modeSpan = document.querySelector('#mode');
+    const transcriptSpan = document.querySelector('#transcription');
+    const mathSpan = document.querySelector('#mathResult');
+
+    let recorder = null;
+    let activeStream = null;
+    let audioChunks = [];
+    let state = 'idle';
+
+    const recorderType = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4']
+      .find((type) => MediaRecorder.isTypeSupported(type));
+
+    function setState(nextState, message) {
+      state = nextState;
+      recordBtn.disabled = nextState === 'processing';
+      recordBtn.textContent = nextState === 'recording' ? 'Stop recording' : 'Start recording';
+      statusDiv.textContent = message;
+    }
+
+    function stopMicrophone() {
+      activeStream?.getTracks().forEach((track) => track.stop());
+      activeStream = null;
+    }
+
+    function extensionFor(mimeType) {
+      if (mimeType.includes('ogg')) return 'ogg';
+      if (mimeType.includes('mp4')) return 'm4a';
+      return 'webm';
+    }
+
+    recordBtn.addEventListener('click', async () => {
+      if (state === 'recording') {
+        setState('processing', 'Uploading mock recording…');
+        recorder.stop();
+        return;
+      }
+
+      resultBox.style.display = 'none';
+      try {
+        activeStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        recorder = recorderType
+          ? new MediaRecorder(activeStream, { mimeType: recorderType })
+          : new MediaRecorder(activeStream);
+        audioChunks = [];
+        recorder.ondataavailable = (event) => {
+          if (event.data.size) audioChunks.push(event.data);
+        };
+        recorder.onstop = async () => {
+          const mimeType = recorder.mimeType || 'audio/webm';
+          const audio = new Blob(audioChunks, { type: mimeType });
+          stopMicrophone();
+          await uploadAudio(audio, mimeType);
+        };
+        recorder.start();
+        setState('recording', 'Recording…');
+      } catch (error) {
+        stopMicrophone();
+        setState('idle', `Could not start the microphone: ${error.message}`);
+      }
+    });
+
+    async function uploadAudio(audio, mimeType) {
+      const formData = new FormData();
+      formData.append('file', audio, `recording.${extensionFor(mimeType)}`);
+      try {
+        const response = await fetch('/process-audio', { method: 'POST', body: formData });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.detail || 'The server could not process the recording.');
+
+        modeSpan.textContent = data.mode || 'openai';
+        transcriptSpan.textContent = data.transcription || 'No text detected';
+        mathSpan.textContent = data.result || 'N/A';
+        resultBox.style.display = 'block';
+        setState('idle', 'Done. Your recording was transcribed by OpenAI.');
+      } catch (error) {
+        resultBox.style.display = 'none';
+        setState('idle', `Upload failed: ${error.message}`);
+      }
+    }
+  </script>
+</body>
+</html>

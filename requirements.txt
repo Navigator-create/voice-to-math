@@ -1,0 +1,5 @@
+fastapi==0.141.1
+uvicorn==0.32.1
+python-multipart==0.0.32
+openai==1.42.0
+httpx==0.27.2
