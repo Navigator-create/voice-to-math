@@ -1,4 +1,9 @@
 # 🎤 Voice Math Calculator for Marine Engineers
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115.0-green)](https://fastapi.tiangolo.com/)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)]()
+
 
 ## The Problem
 
