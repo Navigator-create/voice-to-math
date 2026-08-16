@@ -12,3 +12,4 @@ kokoro-env/
 .claude/
 .cline/
 .codex/
+.aider*
